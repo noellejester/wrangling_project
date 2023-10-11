@@ -1,0 +1,157 @@
+---
+title: "Project - NFL Playing Surface Analysis"
+format: html
+editor: visual
+
+---
+ Step 1: Reading in each file. 
+
+```{r}
+
+## Adding first file for the first part of the Analysis. Focusing on total number of injuries reported by the NFL taking different surfaces into account.
+
+##injury_records <- read.csv("C:/Users/noell/Downloads/InjuryRecord.csv") ## read in "InjruyData"
+
+## Adding the second File for the second part of the Analysis.Focusing on which specific player positions are most affected by these injuries.
+
+## play_list <- read.csv("C:/Users/noell/OneDrive/Dokumente/Data_Wrangling/PlayList.csv/PlayList.csv") ## read in "PlayList"
+
+```
+
+```{r}
+load("C:/Users/noell/OneDrive/Dokumente/Data_Wrangling/project_data.RData")
+
+```
+
+Overall Question: What is the impact of playing surfaces in the NFL on player injuries, and which specific player positions are most affected by these injuries? Are there significant differences in number of injuries between natural grass and synthetic turf, and how do these differences affect player performance and longevity in professional football?
+
+Question 1: What is the impact of playing surfaces in the NFL on player injuries?
+
+```{r}
+
+Total_Injuries_Synthetic = sum(injury_records$Surface == 'Synthetic') ## creating a variable that shows the Total injuries on Synthetic grass
+
+Total_Injuries_Natural = sum(injury_records$Surface == 'Natural')  ## creating a variable that shows the Total injuries on Natural grass
+
+cat(Total_Injuries_Natural, Total_Injuries_Synthetic)
+
+```
+Answer: Synthetic grass causes more lower body injuries overall.
+
+
+```{r}
+## Data Visualization 1: Bar Chart showing the Total Lower Body Injuries reported based on Grass Type 
+
+# Load the ggplot2 library
+library(ggplot2)
+
+# Creating a new data frame to use for the visualization
+Total_Lower_Body_Injuries <- data.frame( ## name of the new data frame
+  GrassType = c('Synthetic', 'Natural'), ## Including column Grass Type with the tw values
+  TotalInjuries = c(57, 48) ## Including column Total Injuries which contains the two values for total lower body injuries based on surface
+)
+
+# Create a bar chart using ggplot2
+
+ggplot(Total_Lower_Body_Injuries, aes(x = GrassType, y = TotalInjuries, fill = GrassType)) +
+  geom_bar(stat = "identity") + ## bar chart, (stat="identity) - means that the height of the bars should be directly determined by the number of injuries
+  labs(x = "Grass Type", y = "Total Injuries Reported") + ## labels for x and y
+  ggtitle("Total Injuries Reported by Grass Type") + ## title of the graph
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1.5), ## adjusting the labels 
+        plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("lightblue", "lightgreen")) ## fills the bars manually (light blue = Synthetic, light green = Natural Grass)
+
+```
+
+Question 2: What specific lower body injuries are more prevalent among NFL players when competing on synthetic grass and natural grass?
+
+```{r}
+## Creating variables that show injury types based on Surface
+
+# Calculate the total count of injuries for each combination of Surface and Body Part
+injury_counts <- table(injury_records$Surface, injury_records$BodyPart) 
+
+## creates a table for the total count of injuries for each combination of surface and body part 
+
+```
+Answer 2: The data reveals a notable finding indicating that ankle and knee injuries are the two most prevalent types of injuries among NFL players, regardless of whether they compete on synthetic or natural grass surfaces. Furthermore, it is interesting that the total number of reported knee injuries remains statistically similar for both playing surfaces.
+
+```{r}
+# Creating a bar graph based on the total amounts of injuries for each body part depended on the surface
+
+library(ggplot2)
+
+ggplot(injury_records, aes(x = BodyPart, fill = Surface)) +
+geom_bar(position = "stack") + ## bar chart where total number of injuries are stacked based on surface
+  labs(title = "Stacked Bar Graph of Injury Counts by Body Part and Surface", 
+       x = "Body Part", 
+       y = "Count") +
+  theme(plot.title = element_text(hjust = 0.5)) + ## title in the middle
+  scale_fill_manual(values = c("lightblue", "lightgreen")) +
+  theme_minimal()
+
+
+proportion_table <- prop.table(table(injury_records$Surface, injury_records$BodyPart), margin = 2) ## creating a second table to show the proportion of how many injuries are associated with each combination of surface type and body part.
+
+# Define colors for each injury category
+injury_colors <- c("darkgray", "black", "white", "lightblue", "lightgreen")  
+
+# Create a mosaic plot with specified colors
+mosaicplot(proportion_table, main = "Mosaic Plot of Injury Proportions", xlab = "Surface", ylab = "Body Part", col = injury_colors)
+
+
+```
+
+Question 3: Which specific player positions are most affected by these injuries on Synthetic Grass?
+
+```{r}
+# Merge injury records and play list by PlayKey
+Injury_play_info <- merge(injury_records, play_list, by.x = "PlayKey", by.y = "PlayKey")
+
+# creating a new table that adds player information to the injuries 
+
+# Filter for synthetic grass surface
+Injury_play_info_synthetic <- subset(Injury_play_info, Surface == "Synthetic") # created a filter to only show injuries that occurred on Synthetic Turf
+
+
+injury_counts_by_position <- table(Injury_play_info_synthetic$RosterPosition, Injury_play_info_synthetic$BodyPart) ## creating a new table that shows a breakdown of injury counts by both player position and body part for Synthetic Turf. 
+
+# Calculates the maximum injury count for each RosterPosition
+max_injury_counts <- apply(injury_counts_by_position, MARGIN = 1, FUN = max) 
+```
+Answer Question 3: When it comes to the number of injuries associated with synthetic grass in the NFL, this analysis has shown that certain positions, including cornerbacks, linebackers, and wide receivers, can be more affected than others. 
+
+```{r}
+
+# Create a data frame for plotting
+max_injury_df <- data.frame(RosterPosition = names(max_injury_counts), MaxInjuryCount = max_injury_counts) ## created a new dataframe to plot the results.
+
+
+library(ggplot2)
+
+# Creating a bar plot
+ggplot(max_injury_df, aes(
+  x = reorder(RosterPosition, -MaxInjuryCount), ## This will make sure that the player position with the highest injury counts will appear on the left side of the graph. (Descending order)
+  y = MaxInjuryCount
+)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  labs(
+    title = "Highest Injury Count by Roster Position on Synthetic Grass",
+    x = "Roster Position",
+    y = "Max Injury Count"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)  # Center the title
+  )
+
+```
+Answer Overall Question: In conclusion, this analysis shows that playing surfaces in the NFL may have an impact on player injuries, with more injuries occurring on synthetic turf compared to natural grass. Specific player positions may be more susceptible to these injuries. However, the study only includes generic information on the type of injury. It only includes the body part that was injured. In order to determine the severity of injuries and their long-term consequences on player performance and career longevity in professional football we would need to know about the specific type of injury. This topic remains an important area for investigation to enhance player safety and optimize playing conditions in the NFL.
+
+```{r}
+save(injury_records,Injury_play_info,Injury_play_info_synthetic,max_injury_df,play_list, Total_Lower_Body_Injuries, injury_colors,injury_counts,injury_counts_by_position,max_injury_df, proportion_table, Total_Injuries_Natural, Total_Injuries_Synthetic, file = "project_data.RData"  )
+
+```
+
